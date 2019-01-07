@@ -7,19 +7,26 @@ import psutil
 import signal
 import sys
 
+class BaseMemoryStats():
+    def __init__(self):
+        self.rss = 0
+        self.vms = 0
+
 def get_percent(process):
     try:
         return process.cpu_percent()
     except AttributeError:
         return process.get_cpu_percent()
-
+    except:
+        return 0
 
 def get_memory(process):
     try:
         return process.memory_info()
     except AttributeError:
         return process.get_memory_info()
-
+    except:
+        return BaseMemoryStats()
 
 def all_children(pr):
     processes = []
@@ -140,18 +147,6 @@ def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
             # Find current time
             current_time = time.time()
 
-            try:
-                pr_status = pr.status()
-            except TypeError:  # psutil < 2.0
-                pr_status = pr.status
-            except psutil.NoSuchProcess:  # pragma: no cover
-                break
-
-            # Check if process status indicates we should exit
-            if pr_status in [psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD]:
-                printf("Process finished ({0:.2f} seconds)".format(current_time - start_time))
-                break
-
             # Check if we have reached the maximum time
             if duration is not None and current_time - start_time > duration:
                 break
@@ -220,7 +215,7 @@ def plot_graphs(process_name, log, plot):
 
             ax.plot(log['times'], log['cpu'], '-', lw=2, color='r')
 
-            ax.set_ylabel('CPU (%)', color='r')
+            ax.set_ylabel('CPU (%) (100% = 1 Core Usage)', color='r')
             ax.set_xlabel('time (s)')
             ax.set_ylim(0., max(max(log['cpu']) * 1.2, 10.0))
 
@@ -230,8 +225,8 @@ def plot_graphs(process_name, log, plot):
             ax2.plot(log['times'], log['mem_real'], '-', lw=2, color='b')
             ay2.plot(log['times'], log['mem_virtual'], '-', lw=2, color='c')
             plt.legend(handles=[mpatches.Patch(color='b', label='Real Memory (MB)'), mpatches.Patch(color='c', label='Virtual Memory (MB)')])
-            ax2.set_ylim(-100.0, max(log['mem_virtual']) * 1.2)
-            ay2.set_ylim(-100.0, max(log['mem_virtual']) * 1.2)
+            ax2.set_ylim(0, max(log['mem_virtual']) * 1.2)
+            ay2.set_ylim(0, max(log['mem_virtual']) * 1.2)
 
             ax2.set_ylabel('See Legend', labelpad=-3)
 
